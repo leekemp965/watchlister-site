@@ -631,8 +631,91 @@ from the adult titles already removed. The 47 not found have no TMDB record at a
 Catalogue after recovery: 5,757 films · 834 shows · 68,177 people ·
 110,727 credits · 96 MB.
 
+### URLs and redirects
+
+Three groups, because they need three different mechanisms.
+
+**Per-record** (`/movie/dune-2021` → `/movies/dune-438631`). Old slugs carried a
+year, new ones carry a TMDB id, so this is a lookup, not a pattern. Each record
+stores its old slug in an indexed `legacySlug` column, populated by
+`scripts/populate-legacy-slugs.mjs` joining on TMDB id. Route handlers under
+`/movie/[slug]`, `/tv_show/[slug]`, `/actor/[slug]` and the other four old
+person types resolve and permanently redirect.
+
+| | coverage |
+|---|---|
+| films | 100% |
+| shows | 97.8% |
+| people | 89.2% |
+
+The gaps are records that never existed on the old site — the 18 shows
+recovered by name search, and people added from TMDB credits — so no old link
+points at them.
+
+`/production_company/`, `/network/`, `/country/` and `/language/` have no
+equivalent page here; those ~6,800 URLs redirect to a search for the name
+rather than 404ing.
+
+**The old site's own rules.** 326 accumulated in its Redirection plugin, mostly
+dated permalinks from before it moved to a flat structure.
+`scripts/extract-redirects.mjs` pulls them out; 319 are usable.
+
+Five were dropped as unparseable — someone had pasted a whole URL into the
+source field (`/https:/watchlister.co/...`), and others contained CSS selectors.
+Next parses sources with path-to-regexp, where `:` starts a named parameter, so
+these fail the build with "Missing parameter name" rather than being ignored.
+
+**Posts stay at the site root.** The old permalink structure was `/%postname%/`,
+so every inbound link points at `/artificial-intelligence-movies`, not
+`/blog/...`. Moving them would have broken all of it for nothing. `/blog` is the
+index; `/blog/{slug}` redirects to the root for a single canonical URL.
+
+### robots.txt and sitemaps
+
+~75,000 URLs, past the 50,000-per-file limit, so the sitemap is chunked: an
+index at `/sitemap.xml` and seven chunks at `/sitemap/{n}.xml`.
+
+These are route handlers under `/seo/*` reached via rewrites, not Next's
+`robots.ts` / `sitemap.ts` metadata files. Because posts live at the root, a
+`[slug]` catch-all owns every single-segment path, and requests for
+`/robots.txt` were seen resolving into it and 404ing. Rewrites resolve before
+routing, so the catch-all never sees them.
+
+Verified: 30 editorial URLs, 5,757 films, 834 shows, 68,177 people across four
+chunks — 74,798 total.
+
+### A debugging lesson worth keeping
+
+Several rounds of the above were spent chasing routing bugs that did not exist.
+`pkill -f "next start"` never matched anything, because Next renames its process
+to `next-server`. An old server kept serving an old build while I rebuilt and
+re-tested against it, "confirming" failures that had already been fixed.
+
+**Check what is actually listening before trusting a result:**
+
+```bash
+lsof -nP -iTCP:3000 -sTCP:LISTEN
+ps -eo pid,etime,args | grep '[n]ext-server'
+```
+
+An `etime` older than your last build means you are testing the wrong thing.
+
+### Deploy readiness
+
+Done: production build passes, repo committed locally (739 files), S3 storage
+adapter wired and switched on by env vars.
+
+**Media storage is the one thing that will break on a serverless host.** Payload
+writes uploads to local disk, and that filesystem is read-only and ephemeral —
+uploads appear to succeed and then vanish. Setting `S3_BUCKET` and friends
+switches it over with no code change; the 222 files in `media/` then need
+re-uploading.
+
+`media/` and `data/` are committed deliberately: `media/` is the only copy of
+the editorial images outside the 2.3 GB archive, and `data/` holds everything
+the import scripts need and cannot re-derive without the dump.
+
 **Outstanding**
-- URL structure and redirects
 - Deploy — note media currently writes to local disk, which will not work on
   Vercel; needs a cloud storage adapter
 
