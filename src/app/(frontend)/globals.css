@@ -1,0 +1,116 @@
+@import 'tailwindcss';
+
+/**
+ * Palette carried over from the old accent1990 theme. Tailwind 4 moves theme
+ * config out of tailwind.config.js and into CSS, so these become real custom
+ * properties as well as utility classes.
+ */
+@theme {
+  --color-snow: #d0cfcf;
+  --color-cod-gray: #1e1e1e;
+  --color-tundora: #404040;
+  --color-vermilion: #ff4400;
+  --color-buttercup: #f59e0b;
+  --color-alto: #dbdbdb;
+
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+  --breakpoint-xs: 320px;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-gray-950);
+    color: white;
+    font-family: var(--font-sans);
+  }
+
+  /* The old theme relied on Poppins from Google Fonts; next/font loads it in
+     the layout and sets --font-poppins, which feeds --font-sans above. */
+}
+
+@layer components {
+  /* Credit tables on title pages: label column, value column, no visible head. */
+  .table-head-none {
+    @apply w-full;
+  }
+  .table-head-none th {
+    @apply pr-4 text-left align-top font-semibold whitespace-nowrap;
+  }
+  .table-head-none td {
+    @apply text-gray-400;
+  }
+  .table-head-none td a {
+    @apply text-vermilion hover:underline;
+  }
+  .table-head-none tr th,
+  .table-head-none tr td {
+    @apply pb-2;
+  }
+
+  /* Horizontal carousels for cast, videos, podcasts and articles. */
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--color-cod-gray);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-tundora);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-vermilion);
+  }
+
+  /* YouTube embeds keep a 16:9 box regardless of the iframe's own attributes. */
+  .youtube-embed {
+    @apply relative w-full;
+    aspect-ratio: 16 / 9;
+  }
+  .youtube-embed iframe {
+    @apply absolute inset-0 h-full w-full;
+  }
+}
+
+/* Rich text coming from the old WordPress content. */
+.prose-watchlister {
+  @apply leading-relaxed text-gray-300;
+}
+.prose-watchlister p {
+  @apply mb-4;
+}
+.prose-watchlister h2 {
+  @apply mt-8 mb-4 text-3xl font-medium text-white;
+}
+.prose-watchlister h3 {
+  @apply mt-6 mb-3 text-2xl font-normal text-white;
+}
+.prose-watchlister h4 {
+  @apply mt-6 mb-2 text-xl font-medium text-white;
+}
+.prose-watchlister strong {
+  @apply font-semibold text-white;
+}
+.prose-watchlister a {
+  @apply text-vermilion hover:underline;
+}
+.prose-watchlister ul {
+  @apply mb-4 list-disc pl-6;
+}
+.prose-watchlister ol {
+  @apply mb-4 list-decimal pl-6;
+}
+.prose-watchlister li {
+  @apply mb-1;
+}
+.prose-watchlister img {
+  @apply my-6 h-auto max-w-full;
+}
+.prose-watchlister blockquote {
+  @apply border-vermilion my-6 border-l-4 pl-4 italic;
+}

@@ -1,0 +1,51 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Build output
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# Secrets — .env.local holds the Neon connection string and TMDB key
+.env*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+*.pem
+
+# Deployment
+.vercel
+
+# Staging directory for images pulled out of the WordPress archive. The files
+# that matter were already uploaded into media/; this is just the raw extract.
+/media-src
+
+# Sync progress. Regenerating it would re-fetch 11,000 titles, but it is machine
+# state rather than source, and the database is the real record.
+/data/sync-checkpoint.json
+/data/sync-failures.json
+
+# NOTE: /media and the rest of /data ARE committed, deliberately.
+#
+#   media/  is the only copy of the 222 editorial images outside the 2.3 GB
+#           archive, which is not in this repo. Losing it means re-extracting
+#           from the tarball. Once S3 is configured these move to object
+#           storage and this can be dropped.
+#
+#   data/   holds the TMDB seed lists, the extracted editorial layer, the
+#           legacy slug map and the old site's redirect rules — everything the
+#           import scripts need, and none of it re-derivable without the dump.
+
+# Run logs
+*.log
