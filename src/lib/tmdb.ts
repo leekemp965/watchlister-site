@@ -74,7 +74,18 @@ export function videoEmbed(url?: string | null): string | null {
 
       if (!id) return null // e.g. a bare "https://youtu.be/" left in the old data
       id = id.split(/[/?&]/)[0]
-      return id ? `https://www.youtube.com/embed/${id}` : null
+      if (!id) return null
+
+      /**
+       * `enablejsapi=1` exposes the player to the JavaScript API, which is what
+       * lets Tag Manager track plays and completions.
+       *
+       * The old WordPress theme did this with a filter on oEmbed output
+       * (`add_enablejsapi_to_oembed_url`), and the GTM container still carries
+       * tags that depend on it. Without the flag those tags fire against a
+       * player that cannot answer, so video engagement silently reads as zero.
+       */
+      return `https://www.youtube.com/embed/${id}?enablejsapi=1`
     }
 
     return null
