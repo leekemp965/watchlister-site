@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
+import { Analytics } from '@/components/Analytics'
 import './globals.css'
 
 const poppins = Poppins({
@@ -40,6 +41,7 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   )
