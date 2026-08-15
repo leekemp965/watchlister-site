@@ -22,7 +22,7 @@ import { ContributeNotice } from '@/components/ContributeNotice'
  * trailer, cast. Here the markup is simply in that order.
  */
 
-export const revalidate = 3600
+export const revalidate = 2592000
 
 /** Importing a title fetches its details and up to 30 cast members. */
 export const maxDuration = 60
@@ -50,7 +50,7 @@ export async function generateStaticParams() {
   const res = await payload.find({
     collection: 'movies',
     sort: '-popularity',
-    limit: 200,
+    limit: 60,
     depth: 0,
   })
   return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))

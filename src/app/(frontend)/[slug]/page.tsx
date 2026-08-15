@@ -18,7 +18,7 @@ import { getPageBySlug, getPostBySlug, getPayloadClient } from '@/lib/queries'
  * are unaffected.
  */
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 type Props = { params: Promise<{ slug: string }> }
 

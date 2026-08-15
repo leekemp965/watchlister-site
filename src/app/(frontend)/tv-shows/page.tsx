@@ -3,7 +3,7 @@ import { getPopularShows } from '@/lib/queries'
 import { TitleGrid } from '@/components/TitleGrid'
 import { Pagination } from '@/components/Pagination'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'TV Shows',

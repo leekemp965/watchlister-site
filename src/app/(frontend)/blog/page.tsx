@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getRecentPosts } from '@/lib/queries'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export const metadata: Metadata = {
   title: 'Blog',

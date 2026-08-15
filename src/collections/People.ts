@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { editorialFields, tmdbId, tmdbImagePath, legacySlug } from '../fields/editorial'
 import { publicRead, signedIn } from './Users'
+import { revalidateAfterChange, revalidateAfterDelete } from '../lib/revalidate'
 
 /**
  * One row per human being.
@@ -22,6 +23,11 @@ export const People: CollectionConfig = {
     group: 'Catalogue',
   },
   access: { read: publicRead, create: signedIn, update: signedIn, delete: signedIn },
+  // Long cache windows are only safe if edits invalidate immediately.
+  hooks: {
+    afterChange: [revalidateAfterChange],
+    afterDelete: [revalidateAfterDelete],
+  },
   fields: [
     tmdbId,
     {

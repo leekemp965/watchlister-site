@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { getPopularMovies, getPopularShows, getRecentPosts } from '@/lib/queries'
 import { TitleGrid } from '@/components/TitleGrid'
 
-export const revalidate = 3600
+export const revalidate = 86400
 
 export default async function HomePage() {
   const [movies, shows, posts] = await Promise.all([

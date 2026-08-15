@@ -14,7 +14,7 @@ import { Videos, Podcasts, Articles, Section } from '@/components/Editorial'
  * filmography groups itself.
  */
 
-export const revalidate = 3600
+export const revalidate = 2592000
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -30,7 +30,7 @@ export async function generateStaticParams() {
   const res = await payload.find({
     collection: 'people',
     where: { knownForDepartment: { equals: 'Acting' } },
-    limit: 50,
+    limit: 20,
     depth: 0,
   })
   return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))

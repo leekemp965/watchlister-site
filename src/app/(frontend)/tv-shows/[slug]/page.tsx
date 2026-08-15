@@ -14,7 +14,7 @@ import { NewTitleNotice } from '@/components/NewTitleNotice'
 import { ContributeForm } from '@/components/ContributeForm'
 import { ContributeNotice } from '@/components/ContributeNotice'
 
-export const revalidate = 3600
+export const revalidate = 2592000
 
 /** Importing a title fetches its details and up to 30 cast members. */
 export const maxDuration = 60
@@ -31,7 +31,7 @@ export async function generateStaticParams() {
   const res = await payload.find({
     collection: 'tv-shows',
     sort: '-popularity',
-    limit: 100,
+    limit: 30,
     depth: 0,
   })
   return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))

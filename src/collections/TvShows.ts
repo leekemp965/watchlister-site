@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { editorialFields, tmdbId, tmdbImagePath, legacySlug } from '../fields/editorial'
 import { publicRead, signedIn } from './Users'
+import { revalidateAfterChange, revalidateAfterDelete } from '../lib/revalidate'
 
 /** 1,050 shows in the old dump. */
 export const TvShows: CollectionConfig = {
@@ -12,6 +13,11 @@ export const TvShows: CollectionConfig = {
     group: 'Catalogue',
   },
   access: { read: publicRead, create: signedIn, update: signedIn, delete: signedIn },
+  // Long cache windows are only safe if edits invalidate immediately.
+  hooks: {
+    afterChange: [revalidateAfterChange],
+    afterDelete: [revalidateAfterDelete],
+  },
   fields: [
     tmdbId,
     { name: 'title', type: 'text', required: true, index: true },
