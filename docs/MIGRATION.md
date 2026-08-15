@@ -593,11 +593,27 @@ and anything never previously searched was invisible. That was a regression.
 - The same module backs `scripts/sync-tmdb.ts`, so bulk and on-demand imports
   cannot drift apart
 
-**Performance.** Going through `payload.create` per credit meant ~70 round
-trips with validation and hooks on each — 47 seconds on a serverless function
-against a 60-second ceiling. Rewritten as five set-based statements it is
-5–11s locally and 19–37s on Vercel, where Payload's boot dominates. Second and
-subsequent views are ~1s. A `loading.tsx` covers the wait.
+**Performance — two separate problems, both now fixed.**
+
+*The import itself.* Going through `payload.create` per credit meant ~70 round
+trips with validation and hooks on each: 47 seconds against a 60-second
+serverless ceiling. Rewritten as five set-based statements, a fresh import is
+now **3–5 seconds**. A `loading.tsx` covers the wait.
+
+*Every other view.* The title routes had no `generateStaticParams`, so Next
+classified them as fully dynamic and **ignored `revalidate` entirely** — every
+request re-rendered and re-queried, showing `x-vercel-cache: MISS` on every hit
+at a steady 1.2–1.9s. Adding it puts the routes into ISR.
+
+| | before | after |
+|---|---|---|
+| prerendered popular title | 1.9s MISS | **0.22s HIT** |
+| previously imported title | 1.4s MISS | **0.11s HIT** |
+| first view, uncatalogued | 19–37s | **3–5s** |
+
+The lesson is that `revalidate` on its own does nothing for a dynamic segment.
+Without `generateStaticParams` the route never enters ISR, and the setting is
+silently ignored — no warning, no error, just a permanently uncached page.
 
 Note `gender` and `role` are Postgres enums: `unnest` yields text and the
 insert will not coerce it, so those arrays need explicit casts.
