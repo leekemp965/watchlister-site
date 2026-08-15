@@ -44,8 +44,8 @@ export function ContributeForm({
           Know something about {titleName}?
         </h2>
         <p className="mb-6 max-w-2xl text-gray-400">
-          If you have come across a video essay, a podcast episode or a piece of writing worth
-          reading about this title, tell us and we will add it to this page.
+          If you have come across a video essay, a breakdown, a podcast episode or a piece of
+          writing worth reading about this title, tell us and we will add it to this page.
         </p>
 
         <form action={action} className="max-w-2xl space-y-4">

@@ -61,9 +61,9 @@ export function ContributeNotice({ titleName, storageKey }: { titleName: string;
           <div>
             <p className="text-vermilion mb-1 font-semibold">Nothing here yet</p>
             <p className="mb-3 text-sm leading-relaxed text-gray-300">
-              Nobody has added anything about{' '}
+              We haven&apos;t added anything about{' '}
               <span className="text-white">{titleName}</span> yet. If you know of a video essay,
-              podcast or article worth reading, we would love to include it.
+              breakdown, podcast or article worth reading, we&apos;d love to include it.
             </p>
             <button
               onClick={goToForm}
