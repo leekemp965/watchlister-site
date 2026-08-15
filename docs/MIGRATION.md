@@ -564,6 +564,53 @@ Villeneuve, and "dune" also turns up *Allan Cor**dune**r*.
 **Re-run the index script after any Payload schema push** — drizzle may drop
 indexes it does not know about.
 
+### On-demand import: the catalogue grows from what people search for
+
+**This is the most important thing to understand about how the site works, and
+I initially rebuilt it wrong.**
+
+The old WordPress site never held a fixed catalogue. Its search
+(`[search_movies]`) queried TMDB's API directly — not the local database — and
+showed results in Movies / TV Shows / Actors tabs. Clicking one POSTed the TMDB
+id to `get_or_add_movies()`, which looked for a local post and, finding none,
+created it along with cast, crew, companies and genres.
+
+So the 11,282 films it accumulated were **whatever people had looked for**.
+That explains the uneven mix, the absence of famous films nobody happened to
+search, and the 5,067 adult titles — someone searched for each one.
+
+The first rebuild searched only local Postgres, so the catalogue could not grow
+and anything never previously searched was invisible. That was a regression.
+
+**How it works now** (`src/lib/tmdb-import.ts`):
+
+- Search queries the local catalogue *and* TMDB in parallel; local results are
+  listed first, since those carry the editorial content
+- Slugs end in the TMDB id (`dune-438631`), so a link can be built before the
+  record exists
+- The title routes import on a miss, then serve the page
+- Adult titles are declined at import, so the old problem cannot recur
+- The same module backs `scripts/sync-tmdb.ts`, so bulk and on-demand imports
+  cannot drift apart
+
+**Performance.** Going through `payload.create` per credit meant ~70 round
+trips with validation and hooks on each — 47 seconds on a serverless function
+against a 60-second ceiling. Rewritten as five set-based statements it is
+5–11s locally and 19–37s on Vercel, where Payload's boot dominates. Second and
+subsequent views are ~1s. A `loading.tsx` covers the wait.
+
+Note `gender` and `role` are Postgres enums: `unnest` yields text and the
+insert will not coerce it, so those arrays need explicit casts.
+
+**Known limitation.** When a URL carries a valid TMDB id but a non-canonical
+slug (`/movies/wrongname-11645`), the redirect to the canonical URL is a
+client-side RSC hop rather than an HTTP 308 — browsers follow it, `curl` and
+crawlers see a 200. Moving the redirect into `generateMetadata` did not change
+this; the likely cause is the `loading.tsx` boundary committing the response
+before the redirect is known. It affects no real traffic, because search links
+always use the canonical slug. Removing the loading state would probably fix
+it, at the cost of a blank screen during a 20–40 second import — a worse trade.
+
 ### The catalogue is a curated subset, not a complete database
 
 Worth knowing before judging any gap: searching "breaking bad" returns nothing,
