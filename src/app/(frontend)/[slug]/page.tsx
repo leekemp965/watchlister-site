@@ -22,6 +22,45 @@ export const revalidate = 3600
 
 type Props = { params: Promise<{ slug: string }> }
 
+/**
+ * Slugs this route must never claim, because a real route owns them.
+ *
+ * The migrated WordPress pages include ones called "Blog" and "Search" — the
+ * old site's listing and results pages, which are real routes here. Left
+ * alone, `generateStaticParams` prerenders /search as that empty page, and the
+ * resulting static file is served in preference to the actual search route,
+ * which is `force-dynamic` and therefore not prerendered. The symptom is a
+ * search page that renders in 4ms and returns nothing.
+ *
+ * /blog escaped only by luck: its route is prerendered too, so the explicit
+ * route won. That is not something to rely on.
+ */
+const RESERVED = new Set([
+  'search',
+  'blog',
+  'movies',
+  'tv-shows',
+  'people',
+  'admin',
+  'api',
+  'robots.txt',
+  'sitemap.xml',
+  'sitemap',
+  'seo',
+  // Legacy WordPress prefixes, handled by their own redirect routes.
+  'movie',
+  'tv_show',
+  'actor',
+  'director',
+  'writer',
+  'composer',
+  'creator',
+  'production_company',
+  'network',
+  'country',
+  'language',
+])
+
 export async function generateStaticParams() {
   const payload = await getPayloadClient()
   const [pages, posts] = await Promise.all([
@@ -33,7 +72,10 @@ export async function generateStaticParams() {
       depth: 0,
     }),
   ])
-  return [...pages.docs, ...posts.docs].map((d) => ({ slug: String(d.slug) }))
+  return [...pages.docs, ...posts.docs]
+    .map((d) => String(d.slug))
+    .filter((slug) => slug && !RESERVED.has(slug))
+    .map((slug) => ({ slug }))
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -64,6 +106,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RootContentPage({ params }: Props) {
   const { slug } = await params
+
+  // Belt and braces: even if a reserved slug reaches this route at runtime,
+  // it must not render the WordPress leftover in place of the real page.
+  if (RESERVED.has(slug)) notFound()
 
   const page = await getPageBySlug(slug)
   if (page) {
