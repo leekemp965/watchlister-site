@@ -1,6 +1,6 @@
 # Deploying Watchlister
 
-**Live at https://watchlister-zeta.vercel.app** — not yet on watchlister.co.
+**Live at https://watchlister.co** (and www), with a valid certificate.
 
 Project: `watch-lister/watchlister`. Environment variables are set for both
 Production and Preview. Note the first `vercel deploy` was assigned to the
@@ -11,9 +11,9 @@ Verified live: every route 200s, all redirects resolve, Dune renders its
 credits and 16 video essays, TMDB posters load, and `/sitemap/1.xml` returns
 5,757 URLs without timing out.
 
-**Outstanding: object storage.** `/api/media/file/…` returns 500, so blog
-featured images and article thumbnails are missing. This is the expected gap
-described below, not a regression.
+**Everything verified live:** every route 200s, all redirect categories resolve,
+images serve from R2, Dune renders its credits and 16 video essays, and GTM
+(container GTM-TJZDDM6X, carried over from the old site) is loading.
 
 Stack at deploy time:
 
