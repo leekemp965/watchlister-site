@@ -3,7 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
-import { getPersonBySlug, getCreditsForPerson } from '@/lib/queries'
+import { getPersonBySlug, getCreditsForPerson, getPayloadClient } from '@/lib/queries'
 import { profileUrl, posterUrl, year, PLACEHOLDER } from '@/lib/tmdb'
 import { Videos, Podcasts, Articles, Section } from '@/components/Editorial'
 
@@ -17,6 +17,24 @@ import { Videos, Podcasts, Articles, Section } from '@/components/Editorial'
 export const revalidate = 3600
 
 type Props = { params: Promise<{ slug: string }> }
+
+/**
+ * Puts this route into ISR. Without `generateStaticParams` Next treats it as
+ * fully dynamic and ignores `revalidate`, re-querying on every request.
+ *
+ * The list is small on purpose: there are 68,000 people and prerendering them
+ * would be pointless. Everything else renders on first view and is then cached.
+ */
+export async function generateStaticParams() {
+  const payload = await getPayloadClient()
+  const res = await payload.find({
+    collection: 'people',
+    where: { knownForDepartment: { equals: 'Acting' } },
+    limit: 50,
+    depth: 0,
+  })
+  return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))
+}
 
 const ROLE_LABEL: Record<string, string> = {
   actor: 'Acting',

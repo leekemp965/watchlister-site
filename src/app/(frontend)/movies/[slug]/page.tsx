@@ -27,6 +27,33 @@ export const maxDuration = 60
 type Props = { params: Promise<{ slug: string }> }
 
 /**
+ * Prerender the most popular films, and — more importantly — put this route
+ * into incremental static regeneration at all.
+ *
+ * Without `generateStaticParams` Next classifies the route as fully dynamic and
+ * ignores `revalidate`, so every request re-renders and re-queries the
+ * database. That showed up as `x-vercel-cache: MISS` on every hit and a
+ * consistent 1.2-1.9s, against 0.3s for a prerendered page.
+ *
+ * With it, unlisted slugs still render on demand (`dynamicParams` defaults to
+ * true) — but the result is then cached, so only the first visitor waits.
+ * That is what makes the import cost a one-off rather than a permanent tax.
+ *
+ * The list is deliberately short: prerendering 5,775 films would make builds
+ * crawl for little gain, since the long tail is cached on first view anyway.
+ */
+export async function generateStaticParams() {
+  const payload = await getPayloadClient()
+  const res = await payload.find({
+    collection: 'movies',
+    sort: '-popularity',
+    limit: 200,
+    depth: 0,
+  })
+  return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))
+}
+
+/**
  * Fetch the film, importing it from TMDB if this is the first time anyone has
  * asked for it.
  *

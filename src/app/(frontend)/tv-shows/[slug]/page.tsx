@@ -19,6 +19,22 @@ export const maxDuration = 60
 type Props = { params: Promise<{ slug: string }> }
 
 /**
+ * See the film page — this is what puts the route into ISR. Without it Next
+ * treats the route as fully dynamic and ignores `revalidate`, so every request
+ * re-queries the database instead of being served from cache.
+ */
+export async function generateStaticParams() {
+  const payload = await getPayloadClient()
+  const res = await payload.find({
+    collection: 'tv-shows',
+    sort: '-popularity',
+    limit: 100,
+    depth: 0,
+  })
+  return res.docs.filter((d) => d.slug).map((d) => ({ slug: String(d.slug) }))
+}
+
+/**
  * See the film page for the reasoning — the catalogue grows from what people
  * look for, as it did on the old site, rather than from a fixed import.
  */
