@@ -10,6 +10,13 @@ import { planChunks, entriesFor, urlsetXml, xmlResponse } from '@/lib/sitemap'
  */
 export const dynamic = 'force-dynamic'
 
+/**
+ * The people chunks are 20,000 rows each, which is well past the 10-second
+ * default a serverless function gets. 60s is the ceiling on Vercel's Hobby
+ * plan and comfortably enough.
+ */
+export const maxDuration = 60
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 

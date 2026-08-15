@@ -12,7 +12,9 @@
     "types": "payload generate:types",
     "extract": "node scripts/extract-wordpress.mjs ../watchlisterco.sql ./data",
     "init-db": "tsx scripts/init-db.ts",
-    "sync": "tsx scripts/sync-tmdb.ts"
+    "sync": "tsx scripts/sync-tmdb.ts",
+    "upload-media": "node --env-file=.env.local scripts/upload-media-to-s3.mjs",
+    "search-indexes": "node --env-file=.env.local scripts/create-search-indexes.mjs"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.88.0",
