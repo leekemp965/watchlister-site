@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { cache } from 'react'
-import { redirect } from 'next/navigation'
+import { permanentRedirect } from 'next/navigation'
 import { getShowBySlug, getCreditsForTitle, getPayloadClient } from '@/lib/queries'
 import { importShow, tmdbIdFromSlug } from '@/lib/tmdb-import'
 import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/tmdb'
@@ -45,7 +45,8 @@ const findOrImport = cache(async (slug: string) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const { show } = await findOrImport(slug)
+  const { show, redirectTo } = await findOrImport(slug)
+  if (redirectTo) permanentRedirect(redirectTo)
   if (!show) return { title: 'Not found' }
 
   const y = year(show.firstAirDate)
@@ -66,7 +67,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ShowPage({ params }: Props) {
   const { slug } = await params
   const { show, redirectTo } = await findOrImport(slug)
-  if (redirectTo) redirect(redirectTo)
+  if (redirectTo) permanentRedirect(redirectTo)
   if (!show) notFound()
 
   const credits = await getCreditsForTitle('tvShow', show.id)

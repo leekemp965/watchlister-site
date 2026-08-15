@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { cache } from 'react'
-import { redirect } from 'next/navigation'
+import { permanentRedirect } from 'next/navigation'
 import { getMovieBySlug, getCreditsForTitle, getPayloadClient } from '@/lib/queries'
 import { importMovie, tmdbIdFromSlug } from '@/lib/tmdb-import'
 import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/tmdb'
@@ -62,7 +62,13 @@ const findOrImport = cache(async (slug: string) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const { movie } = await findOrImport(slug)
+  const { movie, redirectTo } = await findOrImport(slug)
+
+  // Redirect here rather than only in the component. By the time the component
+  // runs, metadata has been emitted and the response committed, so `redirect`
+  // degrades to a client-side RSC hop — fine in a browser, invisible to
+  // crawlers, which would index a 200 titled "Not found".
+  if (redirectTo) permanentRedirect(redirectTo)
   if (!movie) return { title: 'Not found' }
 
   const y = year(movie.releaseDate)
@@ -83,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MoviePage({ params }: Props) {
   const { slug } = await params
   const { movie, redirectTo } = await findOrImport(slug)
-  if (redirectTo) redirect(redirectTo)
+  if (redirectTo) permanentRedirect(redirectTo)
   if (!movie) notFound()
 
   const credits = await getCreditsForTitle('movie', movie.id)
