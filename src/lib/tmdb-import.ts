@@ -167,43 +167,77 @@ async function replaceCredits(
   for (const c of createdBy ?? []) planned.push({ person: c, role: 'creator', order: 0 })
 
   /**
-   * Resolve each distinct person once, in parallel.
+   * Resolve people and write credits in a handful of statements rather than
+   * one Payload call each.
    *
-   * The cache stores the in-flight promise rather than the resolved id, so two
-   * credits for the same person share one insert instead of racing each other
-   * into the unique constraint — the same problem that cost 7 of the first 50
-   * titles during the bulk import.
+   * Going through payload.create for ~35 cast and crew meant ~70 round trips,
+   * each carrying field validation and hooks. On a serverless function that
+   * took 47 seconds against a 60-second ceiling. The same work as five
+   * set-based statements takes a fraction of that, and `on conflict do
+   * nothing` handles two visitors importing the same title at once without
+   * the retry dance.
+   *
+   * This writes through the pool rather than Payload, so it bypasses the
+   * collection hooks. That is safe here because the shape is fixed and the
+   * only hook on credits — exactly one of movie/tvShow — is guaranteed by
+   * construction.
    */
-  const inFlight = new Map<number, Promise<number | string>>()
-  const cache = new Map<number, number | string>()
-  const resolve = (p: TmdbPerson) => {
-    let pending = inFlight.get(p.id)
-    if (!pending) {
-      pending = ensurePerson(payload, p, cache)
-      inFlight.set(p.id, pending)
-    }
-    return pending
+  const pool = (payload.db as unknown as { pool: { query: Function } }).pool
+  const people = [...new Map(planned.map((p) => [p.person.id, p.person])).values()]
+
+  if (people.length) {
+    // gender and role are Postgres enums, so the text arrays need casting
+    // explicitly — unnest yields text and the insert will not coerce it.
+    await pool.query(
+      `insert into people (tmdb_id, name, slug, profile_image_path, known_for_department,
+                           gender, updated_at, created_at)
+       select tmdb_id, name, slug, profile_image_path, known_for_department,
+              gender::enum_people_gender, now(), now()
+         from unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
+              as t(tmdb_id, name, slug, profile_image_path, known_for_department, gender)
+       on conflict (tmdb_id) do nothing`,
+      [
+        people.map((p) => p.id),
+        people.map((p) => p.name),
+        people.map((p) => slugify(p.name, p.id)),
+        people.map((p) => p.profile_path ?? null),
+        people.map((p) => p.known_for_department ?? null),
+        people.map((p) => (p.gender != null ? String(p.gender) : null)),
+      ],
+    )
   }
 
-  const personIds = await Promise.all(planned.map((p) => resolve(p.person)))
+  const idRows = people.length
+    ? (
+        await pool.query('select id, tmdb_id from people where tmdb_id = any($1::int[])', [
+          people.map((p) => p.id),
+        ])
+      ).rows
+    : []
+  const personId = new Map<number, number>(idRows.map((r: any) => [Number(r.tmdb_id), r.id]))
 
-  await Promise.all(
-    planned.map((p, i) =>
-      payload.create({
-        collection: 'credits',
-        data: {
-          person: personIds[i],
-          role: p.role,
-          [key]: titleId,
-          character: p.character ?? null,
-          order: p.order,
-        } as never,
-        depth: 0,
-      }),
-    ),
-  )
+  const column = key === 'movie' ? 'movie_id' : 'tv_show_id'
+  const rows = planned
+    .map((p) => ({ ...p, id: personId.get(p.person.id) }))
+    .filter((p): p is typeof p & { id: number } => p.id !== undefined)
 
-  return planned.length
+  if (rows.length) {
+    await pool.query(
+      `insert into credits (person_id, role, ${column}, "character", "order", updated_at, created_at)
+       select person_id, role::enum_credits_role, title_id, "character", "order", now(), now()
+         from unnest($1::int[], $2::text[], $3::int[], $4::text[], $5::int[])
+              as t(person_id, role, title_id, "character", "order")`,
+      [
+        rows.map((r) => r.id),
+        rows.map((r) => r.role),
+        rows.map(() => Number(titleId)),
+        rows.map((r) => r.character ?? null),
+        rows.map((r) => r.order),
+      ],
+    )
+  }
+
+  return rows.length
 }
 
 const pickTrailer = (videos?: { results?: Array<{ site: string; type: string; key: string }> }) => {
