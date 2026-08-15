@@ -79,6 +79,7 @@ export interface Config {
     posts: Post;
     pages: Page;
     media: Media;
+    submissions: Submission;
     users: User;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
@@ -106,6 +107,7 @@ export interface Config {
     posts: PostsSelect<false> | PostsSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    submissions: SubmissionsSelect<false> | SubmissionsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -615,6 +617,32 @@ export interface Page {
   _status?: ('draft' | 'published') | null;
 }
 /**
+ * Suggestions from readers. Review, then add to the title by hand.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "submissions".
+ */
+export interface Submission {
+  id: number;
+  status: 'pending' | 'added' | 'rejected' | 'spam';
+  type: 'video' | 'podcast' | 'article';
+  url: string;
+  itemTitle: string;
+  note?: string | null;
+  /**
+   * Set for films; empty for television.
+   */
+  movie?: (number | null) | Movie;
+  tvShow?: (number | null) | TvShow;
+  submitterName?: string | null;
+  /**
+   * Only used to follow up on a submission.
+   */
+  submitterEmail?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
@@ -712,6 +740,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'submissions';
+        value: number | Submission;
       } | null)
     | ({
         relationTo: 'users';
@@ -1054,6 +1086,23 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "submissions_select".
+ */
+export interface SubmissionsSelect<T extends boolean = true> {
+  status?: T;
+  type?: T;
+  url?: T;
+  itemTitle?: T;
+  note?: T;
+  movie?: T;
+  tvShow?: T;
+  submitterName?: T;
+  submitterEmail?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

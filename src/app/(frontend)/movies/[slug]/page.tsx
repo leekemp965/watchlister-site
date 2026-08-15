@@ -11,6 +11,8 @@ import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
 import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
 import { NewTitleNotice } from '@/components/NewTitleNotice'
+import { ContributeForm } from '@/components/ContributeForm'
+import { ContributeNotice } from '@/components/ContributeNotice'
 
 /**
  * Port of the old single-movie.php.
@@ -124,6 +126,10 @@ export default async function MoviePage({ params }: Props) {
   const backdrop = backdropUrl(movie.backdropPath, 'w1280')
   const runtime = formatRuntime(movie.runtime)
 
+  /** No hand-added content — the trailer comes from TMDB and does not count. */
+  const isEmpty =
+    !movie.videoEmbeds?.length && !movie.podcasts?.length && !movie.articles?.length
+
   return (
     <div className="container mx-auto flex flex-col px-8 text-white sm:px-16">
       {/* Hero: cover artwork behind poster and headline details */}
@@ -185,6 +191,16 @@ export default async function MoviePage({ params }: Props) {
       <Articles items={movie.articles} />
       <Trailer url={movie.youtubeUrl} />
       <CastRail credits={credits.actor} title="Actors" />
+
+      {/* The invitation only appears where there is genuinely nothing yet —
+          which is about 95% of titles, so the popup is deliberately restrained. */}
+      {isEmpty && (
+        <>
+          <ContributeForm movieId={movie.id} titleName={movie.title} />
+          <ContributeNotice titleName={movie.title} storageKey={`movie-${movie.id}`} />
+        </>
+      )}
+
       <NewTitleNotice title={movie.title} />
     </div>
   )

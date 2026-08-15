@@ -11,6 +11,8 @@ import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
 import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
 import { NewTitleNotice } from '@/components/NewTitleNotice'
+import { ContributeForm } from '@/components/ContributeForm'
+import { ContributeNotice } from '@/components/ContributeNotice'
 
 export const revalidate = 3600
 
@@ -94,6 +96,9 @@ export default async function ShowPage({ params }: Props) {
     ? `${show.numberOfEpisodes} episode${show.numberOfEpisodes === 1 ? '' : 's'}`
     : null
 
+  /** No hand-added content — the trailer comes from TMDB and does not count. */
+  const isEmpty = !show.videoEmbeds?.length && !show.podcasts?.length && !show.articles?.length
+
   return (
     <div className="container mx-auto flex flex-col px-8 text-white sm:px-16">
       <article
@@ -162,6 +167,14 @@ export default async function ShowPage({ params }: Props) {
       <Articles items={show.articles} />
       <Trailer url={show.youtubeUrl} />
       <CastRail credits={credits.actor} title="Cast" />
+
+      {isEmpty && (
+        <>
+          <ContributeForm tvShowId={show.id} titleName={show.title} />
+          <ContributeNotice titleName={show.title} storageKey={`show-${show.id}`} />
+        </>
+      )}
+
       <NewTitleNotice title={show.title} />
     </div>
   )

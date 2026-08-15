@@ -13,6 +13,7 @@ import { People } from './collections/People'
 import { Credits } from './collections/Credits'
 import { Genres, ProductionCompanies, Networks, Countries, Languages } from './collections/reference'
 import { Posts, Pages, Media } from './collections/editorial'
+import { Submissions } from './collections/Submissions'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -36,6 +37,7 @@ export default buildConfig({
     Posts,
     Pages,
     Media,
+    Submissions,
     Users,
   ],
   editor: lexicalEditor(),
