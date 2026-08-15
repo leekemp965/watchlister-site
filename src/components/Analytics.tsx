@@ -1,30 +1,36 @@
+import Script from 'next/script'
 import { GoogleAnalytics, GoogleTagManager } from '@next/third-parties/google'
 
 /**
  * Analytics, loaded only when configured.
  *
- * Supports either route, because the old site ran Google Tag Manager
- * (container GTM-TJZDDM6X) rather than GA4 directly. If that container still
- * exists and has tags configured in it, reusing it keeps them; otherwise a
- * plain GA4 measurement id is simpler.
+ * Cloudflare Web Analytics is the default: it sets no cookies and stores no
+ * personal data, so it needs no consent banner — which matters for a UK site,
+ * where GA4's cookies require consent under PECR and a banner typically costs
+ * 30-60% of your data to declines.
  *
- * Set one of:
- *   NEXT_PUBLIC_GA_ID   G-XXXXXXXXXX   GA4 measurement id
- *   NEXT_PUBLIC_GTM_ID  GTM-XXXXXXX    Tag Manager container
+ * The Google options remain wired for the case where funnels or ad attribution
+ * are wanted later. Setting either brings the consent obligation back.
  *
- * Setting neither renders nothing at all — no script, no cookies — which is
- * what happens in development.
- *
- * These use @next/third-parties, which loads the tag after hydration so it
- * does not compete with the page for bandwidth. The old WordPress theme
- * injected GTM as a blocking script in <head>.
+ * Set at most one of:
+ *   NEXT_PUBLIC_CF_BEACON_TOKEN   Cloudflare Web Analytics  (cookieless)
+ *   NEXT_PUBLIC_GA_ID             GA4 measurement id        (needs consent)
+ *   NEXT_PUBLIC_GTM_ID            Tag Manager container     (needs consent)
  */
 export function Analytics() {
+  const cfToken = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN
   const gaId = process.env.NEXT_PUBLIC_GA_ID
   const gtmId = process.env.NEXT_PUBLIC_GTM_ID
 
   return (
     <>
+      {cfToken && (
+        <Script
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          strategy="afterInteractive"
+          data-cf-beacon={JSON.stringify({ token: cfToken })}
+        />
+      )}
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
     </>

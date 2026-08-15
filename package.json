@@ -14,7 +14,8 @@
     "init-db": "tsx scripts/init-db.ts",
     "sync": "tsx scripts/sync-tmdb.ts",
     "upload-media": "node --env-file=.env.local scripts/upload-media-to-s3.mjs",
-    "search-indexes": "node --env-file=.env.local scripts/create-search-indexes.mjs"
+    "search-indexes": "node --env-file=.env.local scripts/create-search-indexes.mjs",
+    "stats": "node --env-file=.env.local scripts/stats.mjs"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.1",
