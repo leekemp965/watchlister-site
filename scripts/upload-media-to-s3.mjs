@@ -12,7 +12,12 @@
  *
  * Run with:  node --env-file=.env.local scripts/upload-media-to-s3.mjs [--dry-run]
  */
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommand,
+  HeadObjectCommand,
+  HeadBucketCommand,
+} from '@aws-sdk/client-s3'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -56,6 +61,30 @@ const CONTENT_TYPE = {
   '.avif': 'image/avif',
 }
 
+/**
+ * Prove the bucket is actually reachable before doing anything else.
+ *
+ * Without this, a wrong endpoint or bad key looked exactly like an empty
+ * bucket: the per-file existence check treated every error as "not found, so
+ * upload it", and a dry run against a nonexistent host reported 619 files
+ * ready to go. A check that passes when nothing works is worse than no check.
+ */
+try {
+  await client.send(new HeadBucketCommand({ Bucket: S3_BUCKET }))
+} catch (err) {
+  const hint = /getaddrinfo|ENOTFOUND|EAI_AGAIN/.test(String(err.message))
+    ? `S3_ENDPOINT does not resolve — check the account id in:\n    ${S3_ENDPOINT}`
+    : /403|AccessDenied|InvalidAccessKeyId|SignatureDoesNotMatch/.test(String(err.message))
+      ? 'Credentials rejected — check S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY, and that the token has Object Read & Write on this bucket.'
+      : /404|NoSuchBucket|NotFound/.test(String(err.message))
+        ? `Bucket "${S3_BUCKET}" not found at this endpoint.`
+        : err.message
+
+  console.error(`\nCannot reach the bucket.\n\n  ${hint}\n`)
+  process.exit(1)
+}
+console.log(`Bucket "${S3_BUCKET}" reachable.\n`)
+
 /** Payload stores a bare filename, so the bucket is flat — no directory prefix. */
 async function collect(dir) {
   const out = []
@@ -87,15 +116,19 @@ async function worker() {
     try {
       const info = await stat(full)
 
-      // Already there at the same size? Leave it.
+      // Already there at the same size? Leave it. Only a genuine 404 means
+      // "upload this" — anything else is a real error and must not be
+      // mistaken for a missing file.
       try {
         const head = await client.send(new HeadObjectCommand({ Bucket: S3_BUCKET, Key: key }))
         if (head.ContentLength === info.size) {
           skipped++
           continue
         }
-      } catch {
-        // Not found — fall through and upload.
+      } catch (err) {
+        const status = err?.$metadata?.httpStatusCode
+        const missing = status === 404 || /NotFound|NoSuchKey/.test(String(err?.name))
+        if (!missing) throw err
       }
 
       if (DRY) {
