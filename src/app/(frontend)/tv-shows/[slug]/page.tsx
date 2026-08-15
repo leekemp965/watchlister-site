@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
+import { TmdbImage } from '@/components/TmdbImage'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
 import { cache } from 'react'
@@ -107,7 +107,7 @@ export default async function ShowPage({ params }: Props) {
       >
         <div className="grid h-full grid-cols-12 gap-8 bg-gradient-to-b from-gray-900/80 via-gray-800/80 to-gray-950 pt-8 md:gap-16 md:pt-16">
           <figure className="col-span-12 mx-6 md:col-span-3 md:mr-0 md:ml-16">
-            <Image
+            <TmdbImage
               src={poster ?? PLACEHOLDER.poster}
               alt={`${show.title} poster`}
               width={342}

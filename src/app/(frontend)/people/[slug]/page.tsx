@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
+import { TmdbImage } from '@/components/TmdbImage'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
@@ -103,7 +103,7 @@ export default async function PersonPage({ params }: Props) {
     <div className="container mx-auto px-8 text-white sm:px-16">
       <article className="grid grid-cols-12 gap-8 py-8 md:gap-12 md:py-12">
         <figure className="col-span-12 md:col-span-3">
-          <Image
+          <TmdbImage
             src={profile ?? PLACEHOLDER.profile}
             alt={person.name ?? ''}
             width={300}
@@ -174,7 +174,7 @@ export default async function PersonPage({ params }: Props) {
               return (
                 <li key={String(c.id)} className="group">
                   <Link href={href} className="block">
-                    <Image
+                    <TmdbImage
                       src={poster ?? PLACEHOLDER.poster}
                       alt={String(t.title ?? '')}
                       width={185}

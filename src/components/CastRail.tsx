@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { TmdbImage } from '@/components/TmdbImage'
 import Link from 'next/link'
 import { profileUrl, PLACEHOLDER } from '@/lib/tmdb'
 import { Section, Rail } from './Editorial'
@@ -38,7 +38,7 @@ export function CastRail({ credits, title = 'Actors' }: { credits: Credit[]; tit
           return (
             <article key={credit.id} className="group w-32 shrink-0">
               <Link href={`/people/${person.slug}`} className="flex flex-col">
-                <Image
+                <TmdbImage
                   src={img ?? PLACEHOLDER.profile}
                   alt={person.name ?? ''}
                   width={185}

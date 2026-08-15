@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import { TmdbImage } from '@/components/TmdbImage'
 import Link from 'next/link'
 import { posterUrl, year, PLACEHOLDER } from '@/lib/tmdb'
 
@@ -31,7 +31,7 @@ export function TitleGrid({
         return (
           <article key={t.id} className="group">
             <Link href={`${basePath}/${t.slug}`} className="block">
-              <Image
+              <TmdbImage
                 src={poster ?? PLACEHOLDER.poster}
                 alt={t.title ?? ''}
                 width={342}

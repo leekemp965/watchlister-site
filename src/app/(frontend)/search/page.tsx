@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
+import { TmdbImage } from '@/components/TmdbImage'
 import Link from 'next/link'
 import { searchCatalogue, type SearchHit } from '@/lib/queries'
 import { searchTmdb, slugify } from '@/lib/tmdb-import'
@@ -74,7 +74,7 @@ function ResultGrid({
           return (
             <article key={`${basePath}-${item.id}`} className="group">
               <Link href={`${basePath}/${item.slug}`} className="block">
-                <Image
+                <TmdbImage
                   src={img ?? (kind === 'poster' ? PLACEHOLDER.poster : PLACEHOLDER.profile)}
                   alt={item.title}
                   width={342}
