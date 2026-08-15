@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { searchCatalogue, type SearchHit } from '@/lib/queries'
+import { searchTmdb, slugify } from '@/lib/tmdb-import'
 import { posterUrl, profileUrl, PLACEHOLDER } from '@/lib/tmdb'
 
 export const metadata: Metadata = {
@@ -12,6 +13,40 @@ export const metadata: Metadata = {
 // Results depend entirely on the query string, so there is nothing to revalidate.
 export const dynamic = 'force-dynamic'
 
+/**
+ * Search covers all of TMDB, not just what has been imported.
+ *
+ * The old WordPress site queried TMDB directly and created a local page the
+ * first time anyone opened a result, so every film was findable and the
+ * catalogue grew from use. Searching only the local database would mean a
+ * visitor looking for The Social Network gets nothing, purely because nobody
+ * happened to search for it before the site went dark.
+ *
+ * Local records are listed first — they are the ones carrying editorial
+ * content. Everything else links to a slug ending in the TMDB id, which the
+ * title route imports on arrival.
+ */
+type Result = SearchHit & { local: boolean }
+
+function merge(local: SearchHit[], remote: Array<{ tmdbId: number; title: string; year: string | null; imagePath: string | null; subtitle?: string | null }>): Result[] {
+  const held = new Set(local.map((l) => l.tmdbId))
+  return [
+    ...local.map((l) => ({ ...l, local: true })),
+    ...remote
+      .filter((r) => !held.has(r.tmdbId))
+      .map((r) => ({
+        id: `tmdb-${r.tmdbId}`,
+        slug: slugify(r.title, r.tmdbId),
+        title: r.title,
+        tmdbId: r.tmdbId,
+        year: r.year,
+        imagePath: r.imagePath,
+        subtitle: r.subtitle ?? null,
+        local: false,
+      })),
+  ]
+}
+
 function ResultGrid({
   title,
   items,
@@ -19,7 +54,7 @@ function ResultGrid({
   kind,
 }: {
   title: string
-  items: SearchHit[]
+  items: Result[]
   basePath: string
   kind: 'poster' | 'profile'
 }) {
@@ -68,7 +103,20 @@ export default async function SearchPage({
 }) {
   const { q = '' } = await searchParams
   const query = q.trim()
-  const results = query ? await searchCatalogue(query) : null
+
+  // Local and TMDB in parallel — one is a fast indexed query, the other three
+  // API calls, and there is no reason to wait for them in sequence.
+  const [local, remote] = query
+    ? await Promise.all([
+        searchCatalogue(query),
+        searchTmdb(query).catch(() => ({ movies: [], shows: [], people: [] })),
+      ])
+    : [null, null]
+
+  const movies = local && remote ? merge(local.movies, remote.movies) : []
+  const shows = local && remote ? merge(local.shows, remote.shows) : []
+  const people = local && remote ? merge(local.people, remote.people) : []
+  const total = movies.length + shows.length + people.length
 
   return (
     <div className="container mx-auto px-8 py-8 sm:px-16 md:py-12">
@@ -89,11 +137,12 @@ export default async function SearchPage({
 
       {!query && (
         <p className="text-gray-400">
-          Search across 5,757 films, 816 shows and 68,099 people.
+          Search every film, show and person on The Movie Database. Anything not here yet is
+          added the first time you open it.
         </p>
       )}
 
-      {results && results.total === 0 && (
+      {query && total === 0 && (
         <div className="py-8">
           <p className="mb-2 text-xl">
             Nothing found for <span className="text-vermilion">“{query}”</span>.
@@ -105,15 +154,15 @@ export default async function SearchPage({
         </div>
       )}
 
-      {results && results.total > 0 && (
+      {total > 0 && (
         <>
           <p className="mb-4 text-sm text-gray-400">
-            {results.total} result{results.total === 1 ? '' : 's'} for{' '}
+            {total} result{total === 1 ? '' : 's'} for{' '}
             <span className="text-white">“{query}”</span>
           </p>
-          <ResultGrid title="Films" items={results.movies} basePath="/movies" kind="poster" />
-          <ResultGrid title="TV Shows" items={results.shows} basePath="/tv-shows" kind="poster" />
-          <ResultGrid title="People" items={results.people} basePath="/people" kind="profile" />
+          <ResultGrid title="Films" items={movies} basePath="/movies" kind="poster" />
+          <ResultGrid title="TV Shows" items={shows} basePath="/tv-shows" kind="poster" />
+          <ResultGrid title="People" items={people} basePath="/people" kind="profile" />
         </>
       )}
     </div>

@@ -146,6 +146,7 @@ export type SearchHit = {
   id: number | string
   slug: string
   title: string
+  tmdbId: number
   year: string | null
   imagePath: string | null
   subtitle?: string | null
@@ -191,7 +192,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
 
   const [movies, shows, people] = await Promise.all([
     pool.query(
-      `select id, slug, title, poster_path, release_date
+      `select id, slug, title, tmdb_id, poster_path, release_date
          from movies
         where ${clause('title')}
         order by ${rank('title')}, popularity desc nulls last
@@ -199,7 +200,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
       params,
     ),
     pool.query(
-      `select id, slug, title, poster_path, first_air_date
+      `select id, slug, title, tmdb_id, poster_path, first_air_date
          from tv_shows
         where ${clause('title')}
         order by ${rank('title')}, popularity desc nulls last
@@ -207,7 +208,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
       params,
     ),
     pool.query(
-      `select p.id, p.slug, p.name, p.profile_image_path, p.known_for_department,
+      `select p.id, p.slug, p.name, p.tmdb_id, p.profile_image_path, p.known_for_department,
               count(c.id)::int as credit_count
          from people p
          left join credits c on c.person_id = p.id
@@ -227,6 +228,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
         id: r.id as number,
         slug: String(r.slug),
         title: String(r.title),
+        tmdbId: Number(r.tmdb_id),
         year: yearOf(r.release_date),
         imagePath: (r.poster_path as string) ?? null,
       }),
@@ -236,6 +238,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
         id: r.id as number,
         slug: String(r.slug),
         title: String(r.title),
+        tmdbId: Number(r.tmdb_id),
         year: yearOf(r.first_air_date),
         imagePath: (r.poster_path as string) ?? null,
       }),
@@ -245,6 +248,7 @@ export const searchCatalogue = cache(async (query: string, limit = 24) => {
         id: r.id as number,
         slug: String(r.slug),
         title: String(r.name),
+        tmdbId: Number(r.tmdb_id),
         year: null,
         imagePath: (r.profile_image_path as string) ?? null,
         subtitle:

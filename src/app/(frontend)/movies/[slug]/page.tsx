@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
-import { getMovieBySlug, getCreditsForTitle } from '@/lib/queries'
+import { cache } from 'react'
+import { redirect } from 'next/navigation'
+import { getMovieBySlug, getCreditsForTitle, getPayloadClient } from '@/lib/queries'
+import { importMovie, tmdbIdFromSlug } from '@/lib/tmdb-import'
 import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/tmdb'
 import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
@@ -18,11 +21,48 @@ import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
 
 export const revalidate = 3600
 
+/** Importing a title fetches its details and up to 30 cast members. */
+export const maxDuration = 60
+
 type Props = { params: Promise<{ slug: string }> }
+
+/**
+ * Fetch the film, importing it from TMDB if this is the first time anyone has
+ * asked for it.
+ *
+ * This is how the old WordPress site worked: search queried TMDB directly, and
+ * the local record was created the first time someone opened a result. The
+ * catalogue grew from what people looked for rather than from a fixed import.
+ * Slugs end in the TMDB id, so a link can be built before the record exists.
+ */
+const findOrImport = cache(async (slug: string) => {
+  const existing = await getMovieBySlug(slug)
+  if (existing) return { movie: existing, redirectTo: null as string | null }
+
+  const tmdbId = tmdbIdFromSlug(slug)
+  if (!tmdbId) return { movie: null, redirectTo: null }
+
+  const payload = await getPayloadClient()
+  const result = await importMovie(payload, tmdbId)
+  if (result.status !== 'ok') return { movie: null, redirectTo: null }
+
+  // TMDB's title may differ from the slug that was linked, so settle on the
+  // canonical one rather than serving the same film at two URLs.
+  if (result.slug !== slug) return { movie: null, redirectTo: `/movies/${result.slug}` }
+
+  // getMovieBySlug is request-cached and already returned null, so read fresh.
+  const fresh = await payload.find({
+    collection: 'movies',
+    where: { slug: { equals: result.slug } },
+    limit: 1,
+    depth: 2,
+  })
+  return { movie: fresh.docs[0] ?? null, redirectTo: null }
+})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const movie = await getMovieBySlug(slug)
+  const { movie } = await findOrImport(slug)
   if (!movie) return { title: 'Not found' }
 
   const y = year(movie.releaseDate)
@@ -42,7 +82,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MoviePage({ params }: Props) {
   const { slug } = await params
-  const movie = await getMovieBySlug(slug)
+  const { movie, redirectTo } = await findOrImport(slug)
+  if (redirectTo) redirect(redirectTo)
   if (!movie) notFound()
 
   const credits = await getCreditsForTitle('movie', movie.id)

@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { RichText } from '@payloadcms/richtext-lexical/react'
-import { getShowBySlug, getCreditsForTitle } from '@/lib/queries'
+import { cache } from 'react'
+import { redirect } from 'next/navigation'
+import { getShowBySlug, getCreditsForTitle, getPayloadClient } from '@/lib/queries'
+import { importShow, tmdbIdFromSlug } from '@/lib/tmdb-import'
 import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/tmdb'
 import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
@@ -10,11 +13,39 @@ import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
 
 export const revalidate = 3600
 
+/** Importing a title fetches its details and up to 30 cast members. */
+export const maxDuration = 60
+
 type Props = { params: Promise<{ slug: string }> }
+
+/**
+ * See the film page for the reasoning — the catalogue grows from what people
+ * look for, as it did on the old site, rather than from a fixed import.
+ */
+const findOrImport = cache(async (slug: string) => {
+  const existing = await getShowBySlug(slug)
+  if (existing) return { show: existing, redirectTo: null as string | null }
+
+  const tmdbId = tmdbIdFromSlug(slug)
+  if (!tmdbId) return { show: null, redirectTo: null }
+
+  const payload = await getPayloadClient()
+  const result = await importShow(payload, tmdbId)
+  if (result.status !== 'ok') return { show: null, redirectTo: null }
+  if (result.slug !== slug) return { show: null, redirectTo: `/tv-shows/${result.slug}` }
+
+  const fresh = await payload.find({
+    collection: 'tv-shows',
+    where: { slug: { equals: result.slug } },
+    limit: 1,
+    depth: 2,
+  })
+  return { show: fresh.docs[0] ?? null, redirectTo: null }
+})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const show = await getShowBySlug(slug)
+  const { show } = await findOrImport(slug)
   if (!show) return { title: 'Not found' }
 
   const y = year(show.firstAirDate)
@@ -34,7 +65,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ShowPage({ params }: Props) {
   const { slug } = await params
-  const show = await getShowBySlug(slug)
+  const { show, redirectTo } = await findOrImport(slug)
+  if (redirectTo) redirect(redirectTo)
   if (!show) notFound()
 
   const credits = await getCreditsForTitle('tvShow', show.id)
