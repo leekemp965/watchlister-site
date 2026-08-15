@@ -7,21 +7,25 @@ Production and Preview. Note the first `vercel deploy` was assigned to the
 production target automatically, which is Vercel's behaviour for a project's
 first deployment; subsequent ones are previews unless given `--prod`.
 
-Verified live: every route 200s, all redirects resolve, Dune renders its
-credits and 16 video essays, TMDB posters load, and `/sitemap/1.xml` returns
-5,757 URLs without timing out.
-
-**Everything verified live:** every route 200s, all redirect categories resolve,
-images serve from R2, Dune renders its credits and 16 video essays, and GTM
-(container GTM-TJZDDM6X, carried over from the old site) is loading.
-
-Stack at deploy time:
+Verified on the live domain: every route 200s, all redirect categories resolve,
+images serve from R2, Dune renders its credits and 16 video essays,
+`/sitemap/1.xml` returns 5,757 URLs without timing out, and GTM (container
+`GTM-TJZDDM6X`, carried over from the old site) is loading.
 
 | layer | what | status |
 |---|---|---|
-| database | Neon Postgres, `eu-west-2` | already live |
-| app | Next.js on Vercel | to do |
-| media | S3-compatible object storage | **to do, and required** |
+| database | Neon Postgres, `eu-west-2` | live |
+| app | Next.js on Vercel | live |
+| media | Cloudflare R2, 619 files | live |
+| DNS | Cloudflare, A records to `76.76.21.21`, **not proxied** | live |
+| code | github.com/leekemp965/watchlister-site, private | pushed |
+
+The DNS records are deliberately DNS-only rather than proxied: Vercel is
+already a CDN, and proxying would put a second cache in front of it and
+interfere with certificate issuance.
+
+The sections below are kept as the record of how this was set up, and as the
+runbook if any of it needs doing again.
 
 ---
 
