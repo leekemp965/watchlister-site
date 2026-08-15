@@ -58,17 +58,56 @@ export const Submissions: CollectionConfig = {
         { label: 'Article', value: 'article' },
       ],
     },
-    { name: 'url', type: 'text', required: true },
+    {
+      name: 'url',
+      type: 'text',
+      required: true,
+      maxLength: 500,
+      /**
+       * Validated here, not only in the form's server action.
+       *
+       * `create` is public, which means POSTing straight to /api/submissions
+       * skips the action entirely — and it did: a `javascript:` URL and a
+       * `<script>` tag were both accepted that way. Anything enforced only in
+       * the action is decorative.
+       */
+      validate: (value: unknown) => {
+        const raw = String(value ?? '').trim()
+        if (!raw) return 'A link is required.'
+        if (raw.length > 500) return 'That link is too long.'
+        let parsed: URL
+        try {
+          parsed = new URL(raw)
+        } catch {
+          return 'That is not a valid URL.'
+        }
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return 'Links must use http or https.'
+        }
+        return true
+      },
+    },
     {
       name: 'itemTitle',
       type: 'text',
       label: 'What is it called?',
       required: true,
+      maxLength: 200,
+      validate: (value: unknown) => {
+        const raw = String(value ?? '').trim()
+        if (!raw) return 'A title is required.'
+        if (raw.length > 200) return 'That title is too long.'
+        // Not an XSS defence in itself — React escapes on output — but there is
+        // no legitimate reason for markup in a title, so refuse it.
+        if (/<[^>]+>/.test(raw)) return 'Titles cannot contain markup.'
+        return true
+      },
     },
     {
       name: 'note',
       type: 'textarea',
       label: 'Anything else worth knowing',
+      maxLength: 2000,
     },
     {
       name: 'movie',

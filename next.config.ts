@@ -38,6 +38,37 @@ const nextConfig: NextConfig = {
    * /robots.txt, /sitemap.xml and /sitemap/1.xml against a freshly started
    * server.
    */
+  /**
+   * Security headers. Vercel sets HSTS; everything else was missing.
+   *
+   * No Content-Security-Policy yet: the site loads YouTube and Vimeo iframes,
+   * TMDB images, R2 media and Google Tag Manager, and GTM in particular is
+   * hostile to a strict policy because its whole purpose is injecting scripts
+   * decided elsewhere. A policy loose enough to accommodate it buys little, and
+   * a tight one would break analytics silently. Worth revisiting if GTM ever
+   * goes.
+   */
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Stop the site being framed — clickjacking.
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          // Stop browsers second-guessing declared content types.
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Send the origin to other sites, the full path only to our own.
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Nothing here needs these.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+          },
+        ],
+      },
+    ]
+  },
+
   async rewrites() {
     return [
       { source: '/robots.txt', destination: '/seo/robots' },
