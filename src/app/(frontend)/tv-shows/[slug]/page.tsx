@@ -10,6 +10,7 @@ import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/
 import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
 import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
+import { NewTitleNotice } from '@/components/NewTitleNotice'
 
 export const revalidate = 3600
 
@@ -48,15 +49,10 @@ const findOrImport = cache(async (slug: string) => {
   const payload = await getPayloadClient()
   const result = await importShow(payload, tmdbId)
   if (result.status !== 'ok') return { show: null, redirectTo: null }
-  if (result.slug !== slug) return { show: null, redirectTo: `/tv-shows/${result.slug}` }
 
-  const fresh = await payload.find({
-    collection: 'tv-shows',
-    where: { slug: { equals: result.slug } },
-    limit: 1,
-    depth: 2,
-  })
-  return { show: fresh.docs[0] ?? null, redirectTo: null }
+  // See the film page — always redirect, both to settle on the canonical slug
+  // and to carry the ?new=1 flag the notice needs.
+  return { show: null, redirectTo: `/tv-shows/${result.slug}?new=1` }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -166,6 +162,7 @@ export default async function ShowPage({ params }: Props) {
       <Articles items={show.articles} />
       <Trailer url={show.youtubeUrl} />
       <CastRail credits={credits.actor} title="Cast" />
+      <NewTitleNotice title={show.title} />
     </div>
   )
 }

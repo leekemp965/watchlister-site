@@ -10,6 +10,7 @@ import { posterUrl, backdropUrl, formatRuntime, year, PLACEHOLDER } from '@/lib/
 import { CreditsTable } from '@/components/CreditsTable'
 import { CastRail } from '@/components/CastRail'
 import { Videos, Podcasts, Articles, Trailer } from '@/components/Editorial'
+import { NewTitleNotice } from '@/components/NewTitleNotice'
 
 /**
  * Port of the old single-movie.php.
@@ -73,18 +74,16 @@ const findOrImport = cache(async (slug: string) => {
   const result = await importMovie(payload, tmdbId)
   if (result.status !== 'ok') return { movie: null, redirectTo: null }
 
-  // TMDB's title may differ from the slug that was linked, so settle on the
-  // canonical one rather than serving the same film at two URLs.
-  if (result.slug !== slug) return { movie: null, redirectTo: `/movies/${result.slug}` }
-
-  // getMovieBySlug is request-cached and already returned null, so read fresh.
-  const fresh = await payload.find({
-    collection: 'movies',
-    where: { slug: { equals: result.slug } },
-    limit: 1,
-    depth: 2,
-  })
-  return { movie: fresh.docs[0] ?? null, redirectTo: null }
+  /**
+   * Always redirect after importing, even when the slug already matched.
+   *
+   * Two reasons. TMDB's title may differ from the slug that was linked, so the
+   * canonical URL is the one to settle on. And `?new=1` is how the "you found
+   * something new" notice is triggered — it has to come from the URL rather
+   * than a server prop, because this page is ISR-cached and a prop would be
+   * baked in for every later visitor.
+   */
+  return { movie: null, redirectTo: `/movies/${result.slug}?new=1` }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -186,6 +185,7 @@ export default async function MoviePage({ params }: Props) {
       <Articles items={movie.articles} />
       <Trailer url={movie.youtubeUrl} />
       <CastRail credits={credits.actor} title="Actors" />
+      <NewTitleNotice title={movie.title} />
     </div>
   )
 }

@@ -33,6 +33,17 @@
      the layout and sets --font-poppins, which feeds --font-sans above. */
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer components {
   /* Credit tables on title pages: label column, value column, no visible head. */
   .table-head-none {
