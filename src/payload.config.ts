@@ -68,22 +68,31 @@ export default buildConfig({
    * anything else speaking the S3 API.
    */
   plugins: [
-    ...(process.env.S3_BUCKET
-      ? [
-          s3Storage({
-            collections: { media: true },
-            bucket: process.env.S3_BUCKET,
-            config: {
-              region: process.env.S3_REGION ?? 'auto',
-              endpoint: process.env.S3_ENDPOINT,
-              forcePathStyle: Boolean(process.env.S3_ENDPOINT),
-              credentials: {
-                accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
-                secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
-              },
-            },
-          }),
-        ]
-      : []),
+    /**
+     * Always in the array, switched off by `enabled` rather than omitted.
+     *
+     * Adding the plugin conditionally made the resolved config — and so the
+     * generated importMap — depend on which S3_* variables happened to be set.
+     * An importMap generated without them omitted the plugin's client
+     * component, and the admin then rendered a blank page in every environment
+     * that did have them. Keeping the shape constant makes the importMap
+     * deterministic. `alwaysInsertFields` does the same for the collection
+     * schema, and becomes the Payload v4 default.
+     */
+    s3Storage({
+      enabled: Boolean(process.env.S3_BUCKET),
+      alwaysInsertFields: true,
+      collections: { media: true },
+      bucket: process.env.S3_BUCKET ?? '',
+      config: {
+        region: process.env.S3_REGION ?? 'auto',
+        endpoint: process.env.S3_ENDPOINT,
+        forcePathStyle: Boolean(process.env.S3_ENDPOINT),
+        credentials: {
+          accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+          secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+        },
+      },
+    }),
   ],
 })
