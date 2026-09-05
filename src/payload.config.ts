@@ -4,6 +4,7 @@ import { buildConfig } from 'payload'
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { resendAdapter } from '@payloadcms/email-resend'
 import sharp from 'sharp'
 
 import { Users } from './collections/Users'
@@ -18,6 +19,29 @@ import { Submissions } from './collections/Submissions'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default buildConfig({
+  /**
+   * Outbound mail: password resets, and editor invitations later.
+   *
+   * Without an adapter Payload writes these to the server console, which on a
+   * serverless host means they vanish into the function logs — a password reset
+   * that cannot be received is the same as no password reset at all.
+   *
+   * Left undefined when RESEND_API_KEY is absent so local development keeps the
+   * console behaviour rather than failing to send. Unlike the storage plugin
+   * below, an email adapter contributes no admin components, so this condition
+   * cannot desynchronise the importMap.
+   *
+   * The from address defaults to Resend's shared `onboarding@resend.dev`, which
+   * only delivers to the Resend account owner. Set EMAIL_FROM_ADDRESS to a
+   * verified domain to reach anyone else.
+   */
+  email: process.env.RESEND_API_KEY
+    ? resendAdapter({
+        apiKey: process.env.RESEND_API_KEY,
+        defaultFromAddress: process.env.EMAIL_FROM_ADDRESS ?? 'onboarding@resend.dev',
+        defaultFromName: process.env.EMAIL_FROM_NAME ?? 'Watchlister',
+      })
+    : undefined,
   admin: {
     user: Users.slug,
     meta: {
