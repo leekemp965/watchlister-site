@@ -25,16 +25,26 @@ export type Digest = {
   analytics: AnalyticsReport
 }
 
-export async function buildDigest(): Promise<Digest> {
+/**
+ * `offsetDays` picks the day reported: 1 is yesterday, which is what the 08:00
+ * cron wants, and 0 is today so far, which is how you check a change without
+ * waiting until tomorrow morning.
+ */
+export async function buildDigest(offsetDays = 1): Promise<Digest> {
   const payload = await getPayloadClient()
   const pool = (payload.db as unknown as { pool: { query: Function } }).pool
 
+  // Bounded integer, because it is interpolated into SQL. Mirrors dayWindow().
+  const n = Math.max(0, Math.min(3650, Math.trunc(Number(offsetDays) || 0)))
+  const W = `created_at >= current_date - make_interval(days => ${n})
+         and created_at <  current_date - make_interval(days => ${n - 1})`
+
   const { rows } = await pool.query(`
     select
-      (select count(*) from movies      where created_at >= current_date - interval '1 day' and created_at < current_date)::int films,
-      (select count(*) from tv_shows    where created_at >= current_date - interval '1 day' and created_at < current_date)::int shows,
-      (select count(*) from people      where created_at >= current_date - interval '1 day' and created_at < current_date)::int people,
-      (select count(*) from submissions where created_at >= current_date - interval '1 day' and created_at < current_date)::int subs_new,
+      (select count(*) from movies      where ${W})::int films,
+      (select count(*) from tv_shows    where ${W})::int shows,
+      (select count(*) from people      where ${W})::int people,
+      (select count(*) from submissions where ${W})::int subs_new,
       (select count(*) from submissions where status = 'pending')::int subs_pending,
       (select count(*) from movies)::int t_films,
       (select count(*) from tv_shows)::int t_shows,
@@ -53,7 +63,8 @@ export async function buildDigest(): Promise<Digest> {
      order by s.created_at desc
      limit 20`)
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  // The day being reported, which is not necessarily yesterday any more.
+  const reported = new Date(Date.now() - n * 86400000).toISOString().slice(0, 10)
 
   /**
    * Analytics must not be able to take the digest down with it. If the events
@@ -61,7 +72,7 @@ export async function buildDigest(): Promise<Digest> {
    * are still worth sending, so this degrades to an empty report rather than
    * throwing.
    */
-  const analytics = await buildAnalyticsReport().catch((err): AnalyticsReport => {
+  const analytics = await buildAnalyticsReport(n).catch((err): AnalyticsReport => {
     console.error('digest: analytics unavailable', err)
     return {
       collecting: false,
@@ -76,7 +87,7 @@ export async function buildDigest(): Promise<Digest> {
   })
 
   return {
-    date: yesterday,
+    date: reported,
     analytics,
     built: { films: r.films, shows: r.shows, people: r.people },
     submissions: { newToday: r.subs_new, pending: r.subs_pending },
@@ -92,6 +103,37 @@ export async function buildDigest(): Promise<Digest> {
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/**
+ * Sends a built digest through Resend.
+ *
+ * Shared by the cron route and scripts/send-digest.ts so there is one send path
+ * rather than two that can drift. Returns rather than throws, because the caller
+ * decides whether a failed send is a 502 or a line in the terminal — what
+ * matters is that it is never swallowed. A digest that silently stops arriving
+ * is indistinguishable from a quiet day.
+ */
+export async function sendDigest(digest: Digest): Promise<
+  { sent: true; to: string; subject: string } | { sent: false; reason: string; status?: number }
+> {
+  const { subject, html, text } = renderDigest(digest)
+
+  const to = process.env.DIGEST_TO
+  const key = process.env.RESEND_API_KEY
+  const from = process.env.DIGEST_FROM ?? 'Watchlister <onboarding@resend.dev>'
+
+  if (!key) return { sent: false, reason: 'RESEND_API_KEY is not set' }
+  if (!to) return { sent: false, reason: 'DIGEST_TO is not set' }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  })
+
+  if (!res.ok) return { sent: false, reason: await res.text(), status: res.status }
+  return { sent: true, to, subject }
+}
 
 /** A two-or-three column table, or a quiet line when there is nothing to show. */
 function table(rows: string[], empty: string): string {
@@ -197,10 +239,10 @@ export function renderDigest(d: Digest): { subject: string; html: string; text: 
          </p>`
   }
 
-  <h3 style="margin:0 0 8px">Pages built yesterday</h3>
+  <h3 style="margin:0 0 8px">Pages built</h3>
   <p style="margin:0 0 4px">${d.built.films} films · ${d.built.shows} shows · ${d.built.people} people</p>
   <p style="color:#666;font-size:13px;margin:0 0 20px">
-    A page is built the first time someone opens a title we do not already hold.
+    A page is built the first time someone opens a title we do not already hold. The date above is the day being reported.
   </p>
 
   <h3 style="margin:0 0 8px">Submissions</h3>
@@ -250,7 +292,7 @@ export function renderDigest(d: Digest): { subject: string; html: string; text: 
           ``,
         ]
       : [`Visitors: no analytics events have ever been recorded — collection may not be live.`, ``]),
-    `Pages built yesterday: ${d.built.films} films, ${d.built.shows} shows, ${d.built.people} people`,
+    `Pages built: ${d.built.films} films, ${d.built.shows} shows, ${d.built.people} people`,
     `Submissions: ${d.submissions.newToday} new, ${d.submissions.pending} waiting`,
     ...d.pendingList.map((p) => `  · ${p.on} — ${p.type} — ${p.title} — ${p.url}`),
     ``,

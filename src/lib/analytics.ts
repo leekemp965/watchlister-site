@@ -153,8 +153,22 @@ export async function recordEvent(e: IncomingEvent, visitor: string): Promise<vo
 /* Reporting, for the daily digest                                            */
 /* ------------------------------------------------------------------------- */
 
-/** Yesterday, as a half-open range. Matches how the rest of the digest counts. */
-const YESTERDAY = `at >= current_date - interval '1 day' and at < current_date`
+/**
+ * One whole day, as a half-open range: `0` is today so far, `1` is yesterday.
+ *
+ * The daily email always wants yesterday, but being able to ask for today is
+ * what makes the thing checkable — otherwise the only way to see whether a
+ * change works is to wait until tomorrow morning.
+ *
+ * `offset` is interpolated into SQL, so it is forced to a bounded integer here
+ * rather than trusted. `make_interval` takes an integer directly, which keeps
+ * the arithmetic readable at both ends: offset 0 gives
+ * `[current_date, current_date + 1 day)`.
+ */
+function dayWindow(offset: number): string {
+  const n = Math.max(0, Math.min(3650, Math.trunc(Number(offset) || 0)))
+  return `at >= current_date - make_interval(days => ${n}) and at < current_date - make_interval(days => ${n - 1})`
+}
 
 export type PopularPage = { path: string; label: string; views: number; visitors: number }
 export type PopularSearch = { query: string; searches: number; results: number }
@@ -171,18 +185,19 @@ export type AnalyticsReport = {
   topInteractions: Interaction[]
 }
 
-export async function buildAnalyticsReport(): Promise<AnalyticsReport> {
+export async function buildAnalyticsReport(offsetDays = 1): Promise<AnalyticsReport> {
   const p = db()
+  const W = dayWindow(offsetDays)
 
   const { rows: totals } = await p.query(`
     select
       (select count(distinct visitor) from analytics.events
-        where kind = 'pageview' and ${YESTERDAY})::int visitors,
+        where kind = 'pageview' and ${W})::int visitors,
       (select count(*) from analytics.events
-        where kind = 'pageview' and ${YESTERDAY})::int pageviews,
-      (select count(*) from analytics.events where kind = 'video'   and ${YESTERDAY})::int videos,
-      (select count(*) from analytics.events where kind = 'podcast' and ${YESTERDAY})::int podcasts,
-      (select count(*) from analytics.events where kind = 'article' and ${YESTERDAY})::int articles,
+        where kind = 'pageview' and ${W})::int pageviews,
+      (select count(*) from analytics.events where kind = 'video'   and ${W})::int videos,
+      (select count(*) from analytics.events where kind = 'podcast' and ${W})::int podcasts,
+      (select count(*) from analytics.events where kind = 'article' and ${W})::int articles,
       (select count(*) from analytics.events)::int ever
   `)
   const t = totals[0]
@@ -190,13 +205,13 @@ export async function buildAnalyticsReport(): Promise<AnalyticsReport> {
   const { rows: pages } = await p.query(`
     select path, count(*)::int views, count(distinct visitor)::int visitors
       from analytics.events
-     where kind = 'pageview' and ${YESTERDAY}
+     where kind = 'pageview' and ${W}
      group by path order by views desc, path limit 10`)
 
   const { rows: searches } = await p.query(`
     select lower(label) query, count(*)::int searches, max(coalesce(results, 0))::int results
       from analytics.events
-     where kind = 'search' and label is not null and ${YESTERDAY}
+     where kind = 'search' and label is not null and ${W}
      group by lower(label) order by searches desc, query limit 10`)
 
   /**
@@ -206,7 +221,7 @@ export async function buildAnalyticsReport(): Promise<AnalyticsReport> {
   const { rows: empty } = await p.query(`
     select lower(label) query, count(*)::int searches, 0 results
       from analytics.events
-     where kind = 'search' and label is not null and ${YESTERDAY}
+     where kind = 'search' and label is not null and ${W}
      group by lower(label)
     having max(coalesce(results, 0)) = 0
      order by searches desc, query limit 10`)
@@ -214,7 +229,7 @@ export async function buildAnalyticsReport(): Promise<AnalyticsReport> {
   const { rows: top } = await p.query(`
     select coalesce(label, target, '(untitled)') label, path, target, count(*)::int count
       from analytics.events
-     where kind in ('video', 'podcast', 'article') and ${YESTERDAY}
+     where kind in ('video', 'podcast', 'article') and ${W}
      group by 1, 2, 3 order by count desc, label limit 10`)
 
   return {

@@ -1,4 +1,4 @@
-import { buildDigest, renderDigest } from '@/lib/digest'
+import { buildDigest, renderDigest, sendDigest } from '@/lib/digest'
 import { pruneEvents } from '@/lib/analytics'
 
 /**
@@ -29,8 +29,16 @@ export async function GET(req: Request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const digest = await buildDigest()
-  const { subject, html, text } = renderDigest(digest)
+  /**
+   * `?day=0` reports today so far instead of yesterday, for checking a change
+   * without waiting for tomorrow's 08:00 run. The cron passes nothing and gets
+   * yesterday.
+   */
+  const dayParam = new URL(req.url).searchParams.get('day')
+  const offsetDays = dayParam === null ? 1 : Number(dayParam)
+
+  const digest = await buildDigest(offsetDays)
+  const { subject } = renderDigest(digest)
 
   /**
    * Retention, run here rather than on a schedule of its own: this is already a
@@ -44,30 +52,23 @@ export async function GET(req: Request) {
 
   const to = process.env.DIGEST_TO
   const key = process.env.RESEND_API_KEY
-  const from = process.env.DIGEST_FROM ?? 'Watchlister <onboarding@resend.dev>'
 
   // Preview mode, or not yet configured: show what would be sent.
   if (preview || !key || !to) {
     return Response.json({
       wouldSendTo: to ?? '(DIGEST_TO not set)',
       configured: Boolean(key && to),
+      day: digest.date,
       subject,
       digest,
     })
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], subject, html, text }),
-  })
+  const result = await sendDigest(digest)
 
-  if (!res.ok) {
-    const detail = await res.text()
-    // Surfaced rather than swallowed: a digest that silently stops arriving is
-    // indistinguishable from a quiet day.
-    return Response.json({ sent: false, status: res.status, detail }, { status: 502 })
-  }
+  // Surfaced rather than swallowed: a digest that silently stops arriving is
+  // indistinguishable from a quiet day.
+  if (!result.sent) return Response.json(result, { status: 502 })
 
-  return Response.json({ sent: true, to, subject })
+  return Response.json({ ...result, day: digest.date })
 }
