@@ -13,14 +13,48 @@ import { BASE } from '@/lib/sitemap'
 export const dynamic = 'force-static'
 export const revalidate = 86400
 
+/**
+ * SEO-tooling and data-resale crawlers. They bring no traffic, and following a
+ * search result for a title we do not hold costs us a TMDB import and a new
+ * page — see src/proxy.ts, which refuses these at the edge because the one
+ * responsible for ~6,200 unwanted films read this file and ignored it.
+ *
+ * Kept in step with the list in proxy.ts. This states the intent; the
+ * proxy enforces it.
+ */
+const UNWANTED = [
+  'AhrefsBot',
+  'SemrushBot',
+  'DotBot',
+  'MJ12bot',
+  'BLEXBot',
+  'DataForSeoBot',
+  'Barkrowler',
+  'serpstatbot',
+  'ZoominfoBot',
+  'PetalBot',
+  'Bytespider',
+  'ImagesiftBot',
+  'magpie-crawler',
+  'SeekportBot',
+  'MegaIndex',
+  'LinkdexBot',
+  'SPBot',
+]
+
 export function GET() {
   const body = [
+    ...UNWANTED.flatMap((bot) => [`User-agent: ${bot}`, 'Disallow: /', '']),
+
     'User-agent: *',
     'Allow: /',
-    // Search results are infinite and thin — no value in having them indexed.
+    // Search results are infinite and thin — no value in having them indexed,
+    // and the links to titles we do not hold yet are the expensive ones.
     'Disallow: /search',
     'Disallow: /admin',
     'Disallow: /api/',
+    // The analytics beacon. Nothing to crawl, and a GET returns 204.
+    'Disallow: /collect',
     '',
     `Sitemap: ${BASE}/sitemap.xml`,
     '',

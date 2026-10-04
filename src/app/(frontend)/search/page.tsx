@@ -74,7 +74,22 @@ function ResultGrid({
               : profileUrl(item.imagePath, 'w185')
           return (
             <article key={`${basePath}-${item.id}`} className="group">
-              <Link href={`${basePath}/${item.slug}`} className="block">
+              <Link
+                href={`${basePath}/${item.slug}`}
+                /**
+                 * Results we do not hold yet are the only links on the site that
+                 * cost anything to follow — opening one imports the title from
+                 * TMDB and writes a page. A crawler walking them created roughly
+                 * 6,200 films over four days at the end of September.
+                 *
+                 * robots.txt has always disallowed /search and was ignored, so
+                 * this marks the individual links as well. It only helps with
+                 * crawlers that honour it; see src/proxy.ts for the ones
+                 * that do not.
+                 */
+                rel={item.local ? undefined : 'nofollow'}
+                className="block"
+              >
                 <TmdbImage
                   src={img ?? (kind === 'poster' ? PLACEHOLDER.poster : PLACEHOLDER.profile)}
                   alt={item.title}

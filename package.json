@@ -19,7 +19,8 @@
     "analytics-sample": "node --env-file=.env.local scripts/seed-analytics-sample.mjs",
     "check-digest": "tsx --env-file=.env.local scripts/check-digest.ts",
     "stats": "node --env-file=.env.local scripts/stats.mjs",
-    "check-collect": "tsx --env-file=.env.local scripts/check-collect.ts"
+    "check-collect": "tsx --env-file=.env.local scripts/check-collect.ts",
+    "check-proxy": "tsx scripts/check-proxy.ts"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.1",
