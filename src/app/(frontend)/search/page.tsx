@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { TmdbImage } from '@/components/TmdbImage'
+import { TrackSearch } from '@/components/TrackSearch'
 import Link from 'next/link'
 import { searchCatalogue, type SearchHit } from '@/lib/queries'
 import { searchTmdb, slugify } from '@/lib/tmdb-import'
@@ -120,6 +121,9 @@ export default async function SearchPage({
 
   return (
     <div className="container mx-auto px-8 py-8 sm:px-16 md:py-12">
+      {/* Records the query and its result count; renders nothing. */}
+      <TrackSearch query={query} results={total} />
+
       <form action="/search" method="get" className="mb-10">
         <label htmlFor="q" className="sr-only">
           Search

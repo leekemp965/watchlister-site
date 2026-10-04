@@ -83,6 +83,8 @@ export function Podcasts({ items }: { items?: Podcast[] | null }) {
             href={p.url!}
             target="_blank"
             rel="noopener noreferrer"
+            data-track-kind="podcast"
+            data-track-label={[p.title, p.episodeTitle].filter(Boolean).join(': ') || 'Podcast'}
             className="bg-cod-gray hover:border-vermilion min-w-64 max-w-96 shrink-0 border-2 border-transparent px-4 py-6 text-center transition ease-in"
           >
             <Image
@@ -127,11 +129,16 @@ export function Articles({ items }: { items?: ArticleLink[] | null }) {
           const img = typeof a.image === 'object' && a.image ? a.image : null
           const src = img?.url ?? PLACEHOLDER.article
 
+          // Picked up by the delegated listener in <Collect>. Both the image and
+          // the heading link to the same place, so both carry it.
+          const trackProps = { 'data-track-kind': 'article', 'data-track-label': label }
+
           return (
             <article key={a.id ?? i} className="w-64 shrink-0 sm:w-[340px]">
               <a
                 href={href}
                 {...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                {...trackProps}
                 className="block"
               >
                 <Image
@@ -148,6 +155,7 @@ export function Articles({ items }: { items?: ArticleLink[] | null }) {
                   <a
                     href={href}
                     {...(internal ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+                    {...trackProps}
                     className="hover:text-vermilion"
                   >
                     {label}

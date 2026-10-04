@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { Poppins } from 'next/font/google'
 import { SiteHeader } from '@/components/SiteHeader'
 import { SiteFooter } from '@/components/SiteFooter'
 import { Analytics } from '@/components/Analytics'
+import { Collect } from '@/components/Collect'
 import './globals.css'
 
 const poppins = Poppins({
@@ -42,6 +44,15 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         <main>{children}</main>
         <SiteFooter />
         <Analytics />
+        {/**
+         * Suspense is required, not stylistic: <Collect> reads useSearchParams,
+         * and without a boundary that opts every page using this layout out of
+         * static rendering — which would quietly undo the ISR caching the title
+         * pages depend on.
+         */}
+        <Suspense fallback={null}>
+          <Collect />
+        </Suspense>
       </body>
     </html>
   )
