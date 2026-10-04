@@ -1,4 +1,5 @@
 import { buildDigest, renderDigest } from '@/lib/digest'
+import { pruneEvents } from '@/lib/analytics'
 
 /**
  * The daily digest, sent by Vercel Cron.
@@ -30,6 +31,16 @@ export async function GET(req: Request) {
 
   const digest = await buildDigest()
   const { subject, html, text } = renderDigest(digest)
+
+  /**
+   * Retention, run here rather than on a schedule of its own: this is already a
+   * once-a-day job, and one row per pageview outgrows the catalogue given time.
+   * Skipped in preview so that checking the digest never deletes anything.
+   */
+  if (!preview) {
+    const pruned = await pruneEvents()
+    if (pruned) console.log(`digest: pruned ${pruned} analytics events past retention`)
+  }
 
   const to = process.env.DIGEST_TO
   const key = process.env.RESEND_API_KEY

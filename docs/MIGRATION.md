@@ -253,6 +253,16 @@ npm run types        # regenerate payload-types.ts after schema changes
 npm run build        # production build
 ```
 
+Analytics and the digest:
+
+```bash
+npm run analytics-tables    # create the analytics schema and events table
+npm run check-collect       # exercise /collect and the helpers; no server needed
+npm run check-digest        # render the digest to the terminal without sending
+npm run analytics-sample    # seed synthetic events (CLEARS the events table)
+npm run search-indexes      # rebuild the pg_trgm search indexes
+```
+
 Sync flags:
 
 ```bash
@@ -329,6 +339,33 @@ misbehaves.
 apostrophes, escaped backslashes and commas. The extractor uses a hand-written
 tokeniser, and statements can wrap across lines when content contains raw
 newlines.
+
+**Payload's schema push deletes database objects it did not create.** Outside
+production (`push: process.env.NODE_ENV !== 'production'`) Payload runs a Drizzle
+push on boot, introspects `public`, and treats anything absent from the Payload
+config as drift to be reconciled. This has cost us twice:
+
+- The `pg_trgm` GIN indexes behind search were dropped by a push. Search
+  returned nothing until `npm run search-indexes` rebuilt them.
+- A plain `analytics_events` table in `public` produced this on every boot of
+  any script or dev server:
+
+  ```
+  · You're about to delete analytics_events table with 15 items
+  DATA LOSS WARNING: Possible data loss detected if schema is pushed.
+  Accept warnings and push schema to database? › (y/N)
+  ```
+
+  One keystroke from deleting the analytics history, in front of whoever
+  happened to be running a script.
+
+**The fix: keep non-Payload objects out of the `public` schema.** Drizzle's
+introspection is limited to `public`, so the analytics table lives in its own
+`analytics` schema and is invisible to the push. Anything added later that
+Payload does not declare — rollup tables, materialised views, queues — belongs
+in its own schema for the same reason. Indexes on Payload's *own* tables cannot
+be protected this way, so re-run `npm run search-indexes` after any schema
+change and check the output.
 
 ---
 
