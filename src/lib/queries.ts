@@ -115,6 +115,56 @@ export const getPopularShows = cache(async (limit = 12, page = 1) => {
   })
 })
 
+export const getGenreBySlug = cache(async (slug: string) => {
+  const payload = await getPayloadClient()
+  const res = await payload.find({
+    collection: 'genres',
+    where: { slug: { equals: slug } },
+    limit: 1,
+    depth: 0,
+  })
+  return res.docs[0] ?? null
+})
+
+/** Every genre, for prerendering the archives and listing them in the sitemap. */
+export const getAllGenres = cache(async () => {
+  const payload = await getPayloadClient()
+  const res = await payload.find({ collection: 'genres', limit: 200, depth: 0, sort: 'name' })
+  return res.docs
+})
+
+/**
+ * The titles in one genre, most popular first.
+ *
+ * Which collection to search comes from the genre's own `medium`. TMDB numbers
+ * film and television genres in separate spaces, so the vocabulary carries a
+ * flag and the slugs end `-movie` or `-tv`: `drama-movie` and `drama-tv` are
+ * different rows. That means a genre archive is always single-medium, and the
+ * caller does not have to guess which.
+ *
+ * `medium` also allows 'both', which no genre currently uses — all 37 are
+ * either 'movie' or 'tv'. It is treated as films here. If a genre is ever set to
+ * 'both', this needs a second query and the page a second section; one
+ * paginated `find` cannot span two collections.
+ */
+export const getTitlesByGenre = cache(
+  async (genreId: number | string, medium: string | null | undefined, limit = 48, page = 1) => {
+    const payload = await getPayloadClient()
+    const collection = medium === 'tv' ? ('tv-shows' as const) : ('movies' as const)
+
+    const result = await payload.find({
+      collection,
+      where: { genres: { in: [genreId] } },
+      sort: '-popularity',
+      limit,
+      page,
+      depth: 0,
+    })
+
+    return { collection, basePath: medium === 'tv' ? ('/tv-shows' as const) : ('/movies' as const), result }
+  },
+)
+
 /** The editorial posts. */
 export const getRecentPosts = cache(async (limit = 6) => {
   const payload = await getPayloadClient()

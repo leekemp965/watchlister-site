@@ -51,7 +51,7 @@ export async function entriesFor(chunk: Chunk): Promise<Entry[]> {
   const payload = await getPayloadClient()
 
   if (!chunk) {
-    const [pages, posts] = await Promise.all([
+    const [pages, posts, genres] = await Promise.all([
       payload.find({ collection: 'pages', limit: 200, depth: 0 }),
       payload.find({
         collection: 'posts',
@@ -59,6 +59,7 @@ export async function entriesFor(chunk: Chunk): Promise<Entry[]> {
         limit: 500,
         depth: 0,
       }),
+      payload.find({ collection: 'genres', limit: 200, depth: 0, sort: 'name' }),
     ])
 
     return [
@@ -66,6 +67,18 @@ export async function entriesFor(chunk: Chunk): Promise<Entry[]> {
       { loc: `${BASE}/movies`, changefreq: 'daily', priority: 0.9 },
       { loc: `${BASE}/tv-shows`, changefreq: 'daily', priority: 0.9 },
       { loc: `${BASE}/blog`, changefreq: 'weekly', priority: 0.8 },
+      /**
+       * The genre archives. Only 37 of them, and they are the browse entry
+       * points into the catalogue, so they belong in the root chunk alongside
+       * the other listings rather than in a chunk of their own.
+       */
+      ...genres.docs
+        .filter((g) => g.slug)
+        .map((g) => ({
+          loc: `${BASE}/genres/${g.slug}`,
+          changefreq: 'weekly',
+          priority: 0.7,
+        })),
       // Posts sit at the root, matching the old permalink structure.
       ...posts.docs.map((p) => ({
         loc: `${BASE}/${p.slug}`,

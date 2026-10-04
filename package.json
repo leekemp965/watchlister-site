@@ -21,7 +21,8 @@
     "stats": "node --env-file=.env.local scripts/stats.mjs",
     "check-collect": "tsx --env-file=.env.local scripts/check-collect.ts",
     "check-proxy": "tsx scripts/check-proxy.ts",
-    "send-digest": "tsx --env-file=.env.local scripts/send-digest.ts"
+    "send-digest": "tsx --env-file=.env.local scripts/send-digest.ts",
+    "check-genres": "tsx --env-file=.env.local scripts/check-genres.ts"
   },
   "dependencies": {
     "@next/third-parties": "^16.3.1",
